@@ -493,3 +493,33 @@ canvas {
     outline: none;
     border-color: #999;
 }
+
+/* MIDI Controls Section */
+.midi-controls-section {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.midi-enable-container input[type="checkbox"] {
+    margin-left: 10px;
+}
+
+.midi-device-container select {
+    background-color: #555;
+    color: white;
+    border: 1px solid #777;
+    border-radius: 3px;
+    padding: 2px 4px;
+    max-width: 150px;
+    font-size: 0.85em;
+}
+
+.midi-device-container select:focus {
+    outline: none;
+    border-color: #999;
+}
+
+.midi-options-container input[type="checkbox"] {
+    margin-left: 10px;
+}

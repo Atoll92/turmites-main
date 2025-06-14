@@ -169,6 +169,16 @@ let scheduledNotes = new Map(); // Track scheduled audio events
 let lastAudioTime = 0; // Throttle audio generation
 let audioThrottleMs = 50; // Minimum time between audio events per ant
 
+// --- MIDI Variables ---
+let midiEnabled = false;
+let midiAccess = null;
+let selectedMidiOutput = null;
+let midiOutputs = [];
+let midiChannel = 0; // Base MIDI channel (0-15)
+let midiVelocity = 64; // Default velocity (0-127)
+let midiProgramPerAnt = false; // Use different program (instrument) per ant
+let activeMidiNotes = new Map(); // Track active MIDI notes for proper note-off
+
 // --- Musical Scales ---
 const musicalScales = {
     chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
@@ -186,6 +196,14 @@ function initAudio() {
         masterGain = audioContext.createGain();
         masterGain.connect(audioContext.destination);
         masterGain.gain.value = audioVolume;
+        
+        // Resume context if it's suspended (required in some browsers)
+        if (audioContext.state === 'suspended') {
+            audioContext.resume().then(() => {
+                console.log("Audio context resumed");
+            });
+        }
+        
         console.log("Audio initialized successfully");
         return true;
     } catch (error) {
@@ -242,6 +260,96 @@ function colorToVolume(colorIndex) {
     // Map different colors to different volumes
     const volumes = [0.1, 0.8, 0.6, 0.7, 0.5, 0.9, 0.4, 0.3, 0.8, 0.6, 0.7, 0.5];
     return volumes[colorIndex % volumes.length];
+}
+
+// --- MIDI Functions ---
+async function initMIDI() {
+    try {
+        // Check if Web MIDI API is available
+        if (!navigator.requestMIDIAccess) {
+            console.warn("Web MIDI API is not supported in this browser");
+            return false;
+        }
+        
+        midiAccess = await navigator.requestMIDIAccess();
+        console.log("MIDI access granted");
+        
+        // Get available outputs
+        midiOutputs = [];
+        midiAccess.outputs.forEach((output, id) => {
+            midiOutputs.push({ id, name: output.name, port: output });
+            console.log(`MIDI Output found: ${output.name} (${id})`);
+        });
+        
+        // Auto-select first output if available
+        if (midiOutputs.length > 0) {
+            selectedMidiOutput = midiOutputs[0].port;
+            console.log(`Auto-selected MIDI output: ${midiOutputs[0].name}`);
+        }
+        
+        return true;
+    } catch (error) {
+        console.error("MIDI access denied:", error);
+        return false;
+    }
+}
+
+function frequencyToMidiNote(frequency) {
+    // Convert frequency to MIDI note number (A4 = 440Hz = MIDI note 69)
+    const midiNote = Math.round(12 * Math.log2(frequency / 440) + 69);
+    return Math.max(0, Math.min(127, midiNote)); // Clamp to valid MIDI range
+}
+
+function sendMIDINoteOn(note, velocity, channel, antIndex = 0) {
+    if (!selectedMidiOutput || !midiEnabled) return;
+    
+    const actualChannel = midiProgramPerAnt ? 
+        (channel + antIndex) % 16 : channel;
+    
+    const noteOn = [0x90 + actualChannel, note, velocity];
+    selectedMidiOutput.send(noteOn);
+    
+    // Track active note for this ant
+    const noteKey = `${antIndex}-${note}-${actualChannel}`;
+    activeMidiNotes.set(noteKey, { note, channel: actualChannel, timestamp: performance.now() });
+}
+
+function sendMIDINoteOff(note, channel, antIndex = 0) {
+    if (!selectedMidiOutput || !midiEnabled) return;
+    
+    const actualChannel = midiProgramPerAnt ? 
+        (channel + antIndex) % 16 : channel;
+    
+    const noteOff = [0x80 + actualChannel, note, 0];
+    selectedMidiOutput.send(noteOff);
+    
+    // Remove from active notes
+    const noteKey = `${antIndex}-${note}-${actualChannel}`;
+    activeMidiNotes.delete(noteKey);
+}
+
+function sendMIDIProgramChange(program, channel) {
+    if (!selectedMidiOutput) return;
+    
+    const programChange = [0xC0 + channel, program];
+    selectedMidiOutput.send(programChange);
+}
+
+function stopAllMIDINotes() {
+    if (!selectedMidiOutput) return;
+    
+    // Send note off for all active notes
+    activeMidiNotes.forEach((noteData, key) => {
+        const noteOff = [0x80 + noteData.channel, noteData.note, 0];
+        selectedMidiOutput.send(noteOff);
+    });
+    
+    activeMidiNotes.clear();
+    
+    // Send All Notes Off CC on all channels
+    for (let ch = 0; ch < 16; ch++) {
+        selectedMidiOutput.send([0xB0 + ch, 123, 0]); // All Notes Off
+    }
 }
 
 // --- Mapping Function ---
@@ -833,7 +941,7 @@ function stepSingleAntLogic(ant, antIndex = 0) {
             const delay = antIndex * 0.02;
             setTimeout(() => {
                 playNote(frequency, duration, volume, antIndex);
-            }, delay);
+            }, delay * 1000); // Convert to milliseconds
             
             ant.lastAudioTime = now;
             
@@ -852,6 +960,20 @@ function stepSingleAntLogic(ant, antIndex = 0) {
             // Keep only recent events for visualization
             if (ant.musicalEvents.length > 10) {
                 ant.musicalEvents.shift();
+            }
+            
+            // --- MIDI Output ---
+            if (midiEnabled && selectedMidiOutput) {
+                const midiNote = frequencyToMidiNote(frequency);
+                const velocity = Math.round(volume * midiVelocity); // Scale by global velocity
+                
+                // Send MIDI note on
+                sendMIDINoteOn(midiNote, velocity, midiChannel, antIndex);
+                
+                // Schedule note off based on duration
+                setTimeout(() => {
+                    sendMIDINoteOff(midiNote, midiChannel, antIndex);
+                }, duration * 1000); // Convert to milliseconds
             }
         }
     }
@@ -1210,9 +1332,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const musicalScaleSelect = document.getElementById('musicalScaleSelect');
     const baseFreqSlider = document.getElementById('baseFreqSlider');
     const baseFreqValue = document.getElementById('baseFreqValue');
+    
+    // MIDI Controls
+    const midiEnabledCheck = document.getElementById('midiEnabledCheck');
+    const midiDeviceSelect = document.getElementById('midiDeviceSelect');
+    const midiChannelSlider = document.getElementById('midiChannelSlider');
+    const midiChannelValue = document.getElementById('midiChannelValue');
+    const midiVelocitySlider = document.getElementById('midiVelocitySlider');
+    const midiVelocityValue = document.getElementById('midiVelocityValue');
+    const midiProgramPerAntCheck = document.getElementById('midiProgramPerAntCheck');
 
     // Check all required elements rigorously
-    if (!simSpeedSlider || !simSpeedValueSpan || !startStopBtn || !resetBtn || !resetViewBtn || !minimizeBtn || !maximizeBtn || !controlPanel || !rulesDisplay || !applyBtn || !randomizeBtn || !antCountInput || !startPositionSelect || !possibleStatesInput || !possibleColorsInput || !rulesDisplayContainer || !individualRulesCheck || !individualRulesContainer || !editRuleBtn || !ruleLabel || !startDirectionSelect || !rulesDisplayPre /* Add check */ || !saveRuleBtn || !loadRuleBtn || !discardBtn || !presetSelect || !toggleRandomizeOptionsBtn || !randomizeOptionsContent || !moveRelativeCheck || !moveAbsoluteCheck || !moveRandomCheck || !audioEnabledCheck || !audioVolumeSlider || !audioVolumeValue || !musicalScaleSelect || !baseFreqSlider || !baseFreqValue) {
+    if (!simSpeedSlider || !simSpeedValueSpan || !startStopBtn || !resetBtn || !resetViewBtn || !minimizeBtn || !maximizeBtn || !controlPanel || !rulesDisplay || !applyBtn || !randomizeBtn || !antCountInput || !startPositionSelect || !possibleStatesInput || !possibleColorsInput || !rulesDisplayContainer || !individualRulesCheck || !individualRulesContainer || !editRuleBtn || !ruleLabel || !startDirectionSelect || !rulesDisplayPre /* Add check */ || !saveRuleBtn || !loadRuleBtn || !discardBtn || !presetSelect || !toggleRandomizeOptionsBtn || !randomizeOptionsContent || !moveRelativeCheck || !moveAbsoluteCheck || !moveRandomCheck || !audioEnabledCheck || !audioVolumeSlider || !audioVolumeValue || !musicalScaleSelect || !baseFreqSlider || !baseFreqValue || !midiEnabledCheck || !midiDeviceSelect || !midiChannelSlider || !midiChannelValue || !midiVelocitySlider || !midiVelocityValue || !midiProgramPerAntCheck) {
         console.error("One or more control panel elements were not found! Aborting setup.");
         // Optionally log which specific ones were null
         if (!simSpeedSlider) console.error("- simSpeedSlider is null");
@@ -1277,6 +1408,10 @@ document.addEventListener('DOMContentLoaded', () => {
             isRunning = false;
             stopSimulationLoop(); // Stops sim, records pauseTime
             stopRenderLoop();
+            // Stop all MIDI notes when pausing
+            if (midiEnabled) {
+                stopAllMIDINotes();
+            }
         } else {
             console.log("Start button clicked");
             isRunning = true;
@@ -1803,14 +1938,26 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Audio Enable/Disable
     if (audioEnabledCheck) {
-        audioEnabledCheck.addEventListener('change', () => {
+        audioEnabledCheck.addEventListener('change', async () => {
             audioEnabled = audioEnabledCheck.checked;
-            if (audioEnabled && !audioContext) {
-                const success = initAudio();
-                if (!success) {
-                    audioEnabledCheck.checked = false;
-                    audioEnabled = false;
-                    alert("Failed to initialize audio. Please check your browser's audio permissions.");
+            if (audioEnabled) {
+                if (!audioContext) {
+                    const success = initAudio();
+                    if (!success) {
+                        audioEnabledCheck.checked = false;
+                        audioEnabled = false;
+                        alert("Failed to initialize audio. Please check your browser's audio permissions.");
+                        return;
+                    }
+                }
+                // Ensure audio context is running
+                if (audioContext && audioContext.state === 'suspended') {
+                    try {
+                        await audioContext.resume();
+                        console.log("Audio context resumed");
+                    } catch (e) {
+                        console.error("Failed to resume audio context:", e);
+                    }
                 }
             }
             console.log(`Audio ${audioEnabled ? 'enabled' : 'disabled'}`);
@@ -1843,6 +1990,103 @@ document.addEventListener('DOMContentLoaded', () => {
             baseFrequency = parseInt(baseFreqSlider.value, 10);
             baseFreqValue.textContent = baseFrequency + 'Hz';
         });
+    }
+    
+    // --- MIDI Control Listeners ---
+    
+    // MIDI Enable/Disable
+    if (midiEnabledCheck) {
+        midiEnabledCheck.addEventListener('change', async () => {
+            midiEnabled = midiEnabledCheck.checked;
+            if (midiEnabled && !midiAccess) {
+                const success = await initMIDI();
+                if (!success) {
+                    midiEnabledCheck.checked = false;
+                    midiEnabled = false;
+                    alert("Failed to initialize MIDI. Web MIDI API is only supported in Chrome, Edge, and Opera browsers. Firefox and Safari do not support MIDI.");
+                } else {
+                    // Update device dropdown
+                    updateMIDIDeviceList();
+                }
+            } else if (!midiEnabled) {
+                stopAllMIDINotes();
+            }
+            console.log(`MIDI ${midiEnabled ? 'enabled' : 'disabled'}`);
+        });
+    }
+    
+    // MIDI Device Selection
+    if (midiDeviceSelect) {
+        midiDeviceSelect.addEventListener('change', () => {
+            const selectedId = midiDeviceSelect.value;
+            if (selectedId) {
+                const device = midiOutputs.find(d => d.id === selectedId);
+                if (device) {
+                    selectedMidiOutput = device.port;
+                    console.log(`Selected MIDI device: ${device.name}`);
+                }
+            } else {
+                selectedMidiOutput = null;
+            }
+        });
+    }
+    
+    // MIDI Channel Control
+    if (midiChannelSlider && midiChannelValue) {
+        midiChannelSlider.addEventListener('input', () => {
+            midiChannel = parseInt(midiChannelSlider.value, 10) - 1; // Convert to 0-based
+            midiChannelValue.textContent = midiChannelSlider.value;
+        });
+    }
+    
+    // MIDI Velocity Control
+    if (midiVelocitySlider && midiVelocityValue) {
+        midiVelocitySlider.addEventListener('input', () => {
+            midiVelocity = parseInt(midiVelocitySlider.value, 10);
+            midiVelocityValue.textContent = midiVelocity;
+        });
+    }
+    
+    // MIDI Multi-Channel Option
+    if (midiProgramPerAntCheck) {
+        midiProgramPerAntCheck.addEventListener('change', () => {
+            midiProgramPerAnt = midiProgramPerAntCheck.checked;
+            if (midiProgramPerAnt) {
+                // Set different programs for each channel
+                for (let i = 0; i < 16; i++) {
+                    sendMIDIProgramChange(i * 8, i); // Spread instruments
+                }
+            }
+        });
+    }
+    
+    // Helper function to update MIDI device dropdown
+    function updateMIDIDeviceList() {
+        if (!midiDeviceSelect) return;
+        
+        midiDeviceSelect.innerHTML = '';
+        
+        if (midiOutputs.length === 0) {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'No MIDI devices found';
+            midiDeviceSelect.appendChild(option);
+        } else {
+            midiOutputs.forEach(device => {
+                const option = document.createElement('option');
+                option.value = device.id;
+                option.textContent = device.name;
+                midiDeviceSelect.appendChild(option);
+            });
+            
+            // Select first device by default
+            if (selectedMidiOutput) {
+                const currentDevice = midiOutputs.find(d => d.port === selectedMidiOutput);
+                if (currentDevice) {
+                    midiDeviceSelect.value = currentDevice.id;
+                }
+            }
+        }
     }
 });
 

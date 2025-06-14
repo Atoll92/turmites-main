@@ -148,6 +148,47 @@
             </div>
             
             <hr class="control-separator">
+            
+            <!-- MIDI Controls Section -->
+            <div class="midi-controls-section">
+                <h4 class="section-title">🎹 MIDI Output</h4>
+                
+                <!-- MIDI Enable/Disable -->
+                <div class="input-container midi-enable-container">
+                    <label for="midiEnabledCheck" title="Enable/disable MIDI output">MIDI:</label>
+                    <input type="checkbox" id="midiEnabledCheck">
+                </div>
+                
+                <!-- MIDI Device Selection -->
+                <div class="input-container midi-device-container">
+                    <label for="midiDeviceSelect" title="Select MIDI output device">Device:</label>
+                    <select id="midiDeviceSelect">
+                        <option value="">No devices found</option>
+                    </select>
+                </div>
+                
+                <!-- MIDI Channel Selection -->
+                <div class="slider-container">
+                    <label for="midiChannelSlider" title="Base MIDI channel (1-16)">Channel:</label>
+                    <input type="range" id="midiChannelSlider" min="1" max="16" value="1" title="MIDI channel">
+                    <span id="midiChannelValue">1</span>
+                </div>
+                
+                <!-- MIDI Velocity Control -->
+                <div class="slider-container">
+                    <label for="midiVelocitySlider" title="MIDI note velocity (0-127)">Velocity:</label>
+                    <input type="range" id="midiVelocitySlider" min="0" max="127" value="64" title="Note velocity">
+                    <span id="midiVelocityValue">64</span>
+                </div>
+                
+                <!-- MIDI Options -->
+                <div class="input-container midi-options-container">
+                    <label for="midiProgramPerAntCheck" title="Use different MIDI channel/program per ant">Multi-Channel:</label>
+                    <input type="checkbox" id="midiProgramPerAntCheck">
+                </div>
+            </div>
+            
+            <hr class="control-separator">
             <!-- Speed Slider -->
             <div class="slider-container">
                 <label for="simSpeedSlider" title="Adjust simulation speed (steps per second)">Steps/Sec:</label>
