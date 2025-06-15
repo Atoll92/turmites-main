@@ -391,6 +391,14 @@ canvas {
     color: #eee;
 }
 
+/* Grid Info Display */
+.grid-info {
+    text-align: center;
+    font-size: 0.85em;
+    color: #aaa;
+    margin-bottom: 10px;
+}
+
 /* General Hidden Utility */
 .hidden {
     display: none !important; /* Ensure this overrides other display rules */
@@ -522,4 +530,40 @@ canvas {
 
 .midi-options-container input[type="checkbox"] {
     margin-left: 10px;
+}
+
+/* Animation Mode Button */
+.animation-actions {
+    margin-top: 15px;
+    border-top: 1px solid #555;
+    padding-top: 15px;
+}
+
+.animation-btn {
+    background-color: #2a5a2a !important;
+    border: 1px solid #3a7a3a !important;
+    color: #aaffaa !important;
+    font-size: 1em;
+    padding: 8px 16px;
+    width: 100%;
+    transition: all 0.2s ease;
+}
+
+.animation-btn:hover {
+    background-color: #3a7a3a !important;
+    border-color: #4a9a4a !important;
+    color: #ccffcc !important;
+}
+
+.animation-btn.active {
+    background-color: #7a3a3a !important;
+    border-color: #9a4a4a !important;
+    color: #ffaaaa !important;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 0.8; }
+    50% { opacity: 1; }
+    100% { opacity: 0.8; }
 }

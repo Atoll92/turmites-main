@@ -17,6 +17,10 @@
         <div class="panel-content">
             <!-- Panel Title -->
             <h3 class="panel-title">Langton's Ant Colony</h3>
+            <!-- Grid Info Display -->
+            <div class="grid-info">
+                <span id="gridInfo">Grid: --</span>
+            </div>
             <!-- Ant Count Input -->
             <div class="input-container ant-count-container">
                 <label for="antCountInput" title="Total number of ants in the simulation">Ants:</label>
@@ -200,6 +204,11 @@
                 <button id="startStopBtn" title="Pause/Play (Space)">❚❚</button>
                 <button id="resetBtn" title="Reset Simulation (R)">↺</button>
                 <button id="resetViewBtn" title="Reset View">⛶</button>
+            </div>
+            
+            <!-- Animation Mode Button -->
+            <div class="button-group animation-actions">
+                <button id="animationModeBtn" title="Start Animation Mode" class="animation-btn">🎬 Animation Mode</button>
             </div>
         </div>
     </div>

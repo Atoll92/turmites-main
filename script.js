@@ -158,6 +158,21 @@ let pauseTime = 0; // Added: Store time when paused
 let cellsToUpdate = new Set(); // Combined set for all redraw locations
 let needsFullRedraw = true; // Flag to trigger full grid redraw
 
+// --- Animation Mode Variables ---
+let animationMode = false;
+let animationTimeoutId = null;
+let gridFillStartTime = 0;
+let lastGridFillCheck = 0;
+let gridFillThreshold = 0.8; // 80% of cells changed from initial state
+let animationSpeedRampInterval = null;
+let currentAnimationSpeed = 50; // Start at default speed
+let targetAnimationSpeed = 100; // Target max speed
+let speedRampDuration = 30000; // 30 seconds to reach max speed
+let animationStartTime = 0;
+let lastPaintedCellsCount = 0;
+let noPaintProgressTime = 0;
+let noPaintThreshold = 10000; // 10 seconds with no new cells painted
+
 // --- Audio Variables ---
 let audioContext = null;
 let masterGain = null;
@@ -352,6 +367,250 @@ function stopAllMIDINotes() {
     }
 }
 
+// --- Animation Mode Functions ---
+function startAnimationMode() {
+    animationMode = true;
+    animationStartTime = performance.now();
+    gridFillStartTime = 0;
+    
+    // Initialize stuck detection tracking
+    lastPaintedCellsCount = 0;
+    noPaintProgressTime = performance.now();
+    
+    const animationBtn = document.getElementById('animationModeBtn');
+    if (animationBtn) {
+        animationBtn.classList.add('active');
+        animationBtn.textContent = '⏹ Stop Animation';
+    }
+    
+    // Enable audio automatically
+    const audioCheck = document.getElementById('audioEnabledCheck');
+    if (audioCheck && !audioCheck.checked) {
+        audioCheck.checked = true;
+        audioCheck.dispatchEvent(new Event('change'));
+    }
+    
+    // Start with random configuration
+    randomizeForAnimation();
+    
+    // Start speed ramping
+    startSpeedRamp();
+    
+    // Start monitoring for grid fill
+    startGridFillMonitoring();
+    
+    console.log("Animation mode started");
+}
+
+function stopAnimationMode() {
+    animationMode = false;
+    
+    const animationBtn = document.getElementById('animationModeBtn');
+    if (animationBtn) {
+        animationBtn.classList.remove('active');
+        animationBtn.textContent = '🎬 Animation Mode';
+    }
+    
+    // Clear animation timers
+    if (animationTimeoutId) {
+        clearTimeout(animationTimeoutId);
+        animationTimeoutId = null;
+    }
+    
+    if (animationSpeedRampInterval) {
+        clearInterval(animationSpeedRampInterval);
+        animationSpeedRampInterval = null;
+    }
+    
+    // Reset speed to default
+    const speedSlider = document.getElementById('simSpeedSlider');
+    if (speedSlider) {
+        speedSlider.value = '50';
+        speedSlider.dispatchEvent(new Event('input'));
+    }
+    
+    console.log("Animation mode stopped");
+}
+
+function randomizeForAnimation() {
+    // Reset speed to starting value for new cycle
+    const speedSlider = document.getElementById('simSpeedSlider');
+    if (speedSlider) {
+        speedSlider.value = '50'; // Reset to default starting speed
+        speedSlider.dispatchEvent(new Event('input'));
+    }
+    
+    // Clear existing speed ramp interval
+    if (animationSpeedRampInterval) {
+        clearInterval(animationSpeedRampInterval);
+        animationSpeedRampInterval = null;
+    }
+    
+    // Random number of ants (1-20)
+    const numAnts = Math.floor(Math.random() * 20) + 1;
+    const antCountInput = document.getElementById('antCountInput');
+    if (antCountInput) {
+        antCountInput.value = numAnts;
+    }
+    
+    // Random start position
+    const positions = ['center', 'random', 'grid', 'row'];
+    const randomPosition = positions[Math.floor(Math.random() * positions.length)];
+    const startPositionSelect = document.getElementById('startPositionSelect');
+    if (startPositionSelect) {
+        startPositionSelect.value = randomPosition;
+    }
+    
+    // Random start direction
+    const directions = ['0', '1', '2', '3', 'random'];
+    const randomDirection = directions[Math.floor(Math.random() * directions.length)];
+    const startDirectionSelect = document.getElementById('startDirectionSelect');
+    if (startDirectionSelect) {
+        startDirectionSelect.value = randomDirection;
+    }
+    
+    // Randomly enable/disable movement types
+    const moveRelativeCheck = document.getElementById('moveRelativeCheck');
+    const moveAbsoluteCheck = document.getElementById('moveAbsoluteCheck');
+    const moveRandomCheck = document.getElementById('moveRandomCheck');
+    
+    if (moveRelativeCheck) moveRelativeCheck.checked = Math.random() > 0.3; // 70% chance
+    if (moveAbsoluteCheck) moveAbsoluteCheck.checked = Math.random() > 0.7; // 30% chance
+    if (moveRandomCheck) moveRandomCheck.checked = Math.random() > 0.8; // 20% chance
+    
+    // Ensure at least one movement type is enabled
+    if (moveRelativeCheck && moveAbsoluteCheck && moveRandomCheck) {
+        if (!moveRelativeCheck.checked && !moveAbsoluteCheck.checked && !moveRandomCheck.checked) {
+            moveRelativeCheck.checked = true;
+        }
+    }
+    
+    // Random max states and colors
+    const maxStates = Math.floor(Math.random() * 5) + 2; // 2-6 states
+    const maxColors = Math.floor(Math.random() * 6) + 3; // 3-8 colors
+    
+    const possibleStatesInput = document.getElementById('possibleStatesInput');
+    const possibleColorsInput = document.getElementById('possibleColorsInput');
+    if (possibleStatesInput) possibleStatesInput.value = maxStates;
+    if (possibleColorsInput) possibleColorsInput.value = maxColors;
+    
+    // Randomize and reset
+    initSimulation(true, maxStates, maxColors, true);
+    
+    // Reset camera for better view
+    resetCamera();
+    
+    // Reset animation start time for new speed ramp
+    animationStartTime = performance.now();
+    
+    // Reset stuck detection tracking
+    lastPaintedCellsCount = 0;
+    noPaintProgressTime = performance.now();
+    
+    // Start new speed ramp
+    startSpeedRamp();
+}
+
+function checkGridFill() {
+    if (!grid || !animationMode) return 0;
+    
+    let nonDefaultCells = 0;
+    const totalCells = gridCols * gridRows;
+    
+    for (let y = 0; y < gridRows; y++) {
+        for (let x = 0; x < gridCols; x++) {
+            if (grid[y][x] !== 0) { // Non-default color
+                nonDefaultCells++;
+            }
+        }
+    }
+    
+    // Track progress for stuck detection
+    const currentPaintedCells = nonDefaultCells;
+    const now = performance.now();
+    
+    if (currentPaintedCells > lastPaintedCellsCount) {
+        // New cells were painted, reset stuck timer
+        lastPaintedCellsCount = currentPaintedCells;
+        noPaintProgressTime = now;
+    } else if (now - noPaintProgressTime >= noPaintThreshold) {
+        // No new cells painted for 10 seconds, randomize to prevent stuck animation
+        console.log("No new cells painted for 10 seconds, randomizing to prevent stuck animation");
+        lastPaintedCellsCount = 0;
+        noPaintProgressTime = now;
+        randomizeForAnimation();
+    }
+    
+    return nonDefaultCells / totalCells;
+}
+
+function startGridFillMonitoring() {
+    const checkInterval = 1000; // Check every second
+    
+    const monitorGrid = () => {
+        if (!animationMode) return;
+        
+        const fillRatio = checkGridFill();
+        const now = performance.now();
+        
+        if (fillRatio >= gridFillThreshold) {
+            if (gridFillStartTime === 0) {
+                gridFillStartTime = now;
+                console.log(`Grid ${Math.round(fillRatio * 100)}% filled, starting 10s countdown`);
+            } else if (now - gridFillStartTime >= 10000) { // 10 seconds elapsed
+                console.log("Grid filled for 10s, resetting animation");
+                gridFillStartTime = 0;
+                randomizeForAnimation();
+            }
+        } else {
+            gridFillStartTime = 0; // Reset timer if grid is no longer filled enough
+        }
+        
+        // Continue monitoring
+        if (animationMode) {
+            animationTimeoutId = setTimeout(monitorGrid, checkInterval);
+        }
+    };
+    
+    monitorGrid();
+}
+
+function startSpeedRamp() {
+    const startSpeed = 50;
+    const maxSpeed = 100;
+    const updateInterval = 100; // Update every 100ms
+    
+    currentAnimationSpeed = startSpeed;
+    
+    animationSpeedRampInterval = setInterval(() => {
+        if (!animationMode) return;
+        
+        const elapsed = performance.now() - animationStartTime;
+        const progress = Math.min(elapsed / speedRampDuration, 1);
+        
+        // Use exponential curve for more dramatic speed increase
+        const exponentialProgress = Math.pow(progress, 2);
+        currentAnimationSpeed = startSpeed + (maxSpeed - startSpeed) * exponentialProgress;
+        
+        // Add random variations for more organic feel
+        const randomVariation = (Math.random() - 0.5) * 10;
+        currentAnimationSpeed = Math.max(startSpeed, Math.min(maxSpeed, currentAnimationSpeed + randomVariation));
+        
+        // Update speed slider
+        const speedSlider = document.getElementById('simSpeedSlider');
+        const speedValue = document.getElementById('simSpeedValue');
+        if (speedSlider && speedValue) {
+            speedSlider.value = Math.round(currentAnimationSpeed);
+            speedValue.textContent = Math.round(mapSliderToSpeed(currentAnimationSpeed));
+        }
+        
+        if (progress >= 1) {
+            clearInterval(animationSpeedRampInterval);
+            animationSpeedRampInterval = null;
+        }
+    }, updateInterval);
+}
+
 // --- Mapping Function ---
 function mapSliderToSpeed(sliderValue) {
     const sliderMin = 1;
@@ -419,7 +678,14 @@ function initGrid() {
     }
     const defaultColorIndex = 0;
     grid = Array(gridRows).fill(null).map(() => Array(gridCols).fill(defaultColorIndex));
-    console.log(`Initialized grid: ${gridCols}x${gridRows} with color ${defaultColorIndex} (${cellColors[defaultColorIndex]}) using scale ${scale}`);
+    const totalCells = gridCols * gridRows;
+    console.log(`Initialized grid: ${gridCols}x${gridRows} = ${totalCells.toLocaleString()} cells with color ${defaultColorIndex} (${cellColors[defaultColorIndex]}) using scale ${scale}`);
+    
+    // Update grid info display
+    const gridInfoElement = document.getElementById('gridInfo');
+    if (gridInfoElement) {
+        gridInfoElement.textContent = `Grid: ${gridCols}×${gridRows} = ${totalCells.toLocaleString()} cells`;
+    }
 }
 
 // --- Helper Functions ---
@@ -1212,6 +1478,16 @@ function handleZoom(event) {
 
     setCanvasSmoothing(false);
     needsFullRedraw = true; // View changed, need full redraw
+    
+    // Update grid info display with new scale
+    const newGridCols = Math.ceil(width / scale);
+    const newGridRows = Math.ceil(height / scale);
+    const newTotalCells = newGridCols * newGridRows;
+    const gridInfoElement = document.getElementById('gridInfo');
+    if (gridInfoElement) {
+        gridInfoElement.textContent = `Grid: ${newGridCols}×${newGridRows} = ${newTotalCells.toLocaleString()} cells`;
+    }
+    
     // Request animation frame, draw() will handle the rest
     if (!renderRequestId && !isRunning) requestAnimationFrame(draw);
 }
@@ -1341,6 +1617,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const midiVelocitySlider = document.getElementById('midiVelocitySlider');
     const midiVelocityValue = document.getElementById('midiVelocityValue');
     const midiProgramPerAntCheck = document.getElementById('midiProgramPerAntCheck');
+    
+    // Animation Mode
+    const animationModeBtn = document.getElementById('animationModeBtn');
 
     // Check all required elements rigorously
     if (!simSpeedSlider || !simSpeedValueSpan || !startStopBtn || !resetBtn || !resetViewBtn || !minimizeBtn || !maximizeBtn || !controlPanel || !rulesDisplay || !applyBtn || !randomizeBtn || !antCountInput || !startPositionSelect || !possibleStatesInput || !possibleColorsInput || !rulesDisplayContainer || !individualRulesCheck || !individualRulesContainer || !editRuleBtn || !ruleLabel || !startDirectionSelect || !rulesDisplayPre /* Add check */ || !saveRuleBtn || !loadRuleBtn || !discardBtn || !presetSelect || !toggleRandomizeOptionsBtn || !randomizeOptionsContent || !moveRelativeCheck || !moveAbsoluteCheck || !moveRandomCheck || !audioEnabledCheck || !audioVolumeSlider || !audioVolumeValue || !musicalScaleSelect || !baseFreqSlider || !baseFreqValue || !midiEnabledCheck || !midiDeviceSelect || !midiChannelSlider || !midiChannelValue || !midiVelocitySlider || !midiVelocityValue || !midiProgramPerAntCheck) {
@@ -2087,6 +2366,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
+    }
+    
+    // --- Animation Mode Listener ---
+    if (animationModeBtn) {
+        animationModeBtn.addEventListener('click', () => {
+            if (animationMode) {
+                stopAnimationMode();
+            } else {
+                startAnimationMode();
+            }
+        });
     }
 });
 
