@@ -8,6 +8,38 @@
 </head>
 <body>
     <canvas id="antCanvas"></canvas>
+    
+    <!-- Art Installation Overlay -->
+    <div id="artOverlay" class="art-overlay hidden">
+        <div class="complexity-metrics">
+            <div class="metric-section">
+                <h3>COMPUTATIONAL LOAD</h3>
+                <div class="metric-value" id="computationalLoad">0</div>
+                <div class="metric-unit">calculations/sec</div>
+            </div>
+            <div class="metric-section">
+                <h3>SYSTEMIC COMPLEXITY</h3>
+                <div class="metric-value" id="systemicComplexity">1</div>
+                <div class="metric-unit">emergent patterns</div>
+            </div>
+            <div class="metric-section">
+                <h3>INCOMPREHENSIBLE DATA</h3>
+                <div class="metric-value streaming" id="dataStream">000000</div>
+                <div class="metric-unit">états quantiques</div>
+            </div>
+        </div>
+        
+        <div class="philosophical-text">
+            <p class="fade-text" id="philosophicalQuote">
+                "L'intelligence artificielle dépasse l'entendement humain..."
+            </p>
+        </div>
+        
+        <div class="performance-warning" id="performanceWarning">
+            <div class="warning-icon">⚠</div>
+            <div class="warning-text">SYSTÈME EN SURCHARGE COGNITIVE</div>
+        </div>
+    </div>
 
     <div id="controlPanel" class="minimized">
         <div class="panel-header">
@@ -209,6 +241,11 @@
             <!-- Animation Mode Button -->
             <div class="button-group animation-actions">
                 <button id="animationModeBtn" title="Start Animation Mode" class="animation-btn">🎬 Animation Mode</button>
+            </div>
+            
+            <!-- Art Installation Mode Button -->
+            <div class="button-group art-installation-actions">
+                <button id="artInstallationBtn" title="Mode Installation Artistique" class="art-btn">🎨 Installation Art</button>
             </div>
         </div>
     </div>

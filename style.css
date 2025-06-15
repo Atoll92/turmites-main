@@ -567,3 +567,187 @@ canvas {
     50% { opacity: 1; }
     100% { opacity: 0.8; }
 }
+
+/* Art Installation Overlay */
+.art-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    color: #00ff00;
+    font-family: 'Courier New', monospace;
+    pointer-events: none;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 40px;
+}
+
+.complexity-metrics {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 20px;
+}
+
+.metric-section {
+    text-align: center;
+    background: rgba(0, 20, 0, 0.8);
+    padding: 20px;
+    border: 2px solid #00ff00;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+}
+
+.metric-section h3 {
+    font-size: 14px;
+    margin: 0 0 10px 0;
+    color: #00ff88;
+    letter-spacing: 2px;
+}
+
+.metric-value {
+    font-size: 36px;
+    font-weight: bold;
+    color: #00ff00;
+    text-shadow: 0 0 10px rgba(0, 255, 0, 0.8);
+    font-family: 'Courier New', monospace;
+}
+
+.metric-value.streaming {
+    animation: numberFlicker 0.1s infinite;
+}
+
+@keyframes numberFlicker {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+.metric-unit {
+    font-size: 12px;
+    color: #00ff44;
+    margin-top: 5px;
+    text-transform: uppercase;
+}
+
+.philosophical-text {
+    text-align: center;
+    margin: auto;
+}
+
+.fade-text {
+    font-size: 24px;
+    color: #00ff66;
+    text-shadow: 0 0 15px rgba(0, 255, 102, 0.6);
+    animation: fadePhilosophy 8s infinite;
+    max-width: 800px;
+    margin: 0 auto;
+    font-style: italic;
+}
+
+@keyframes fadePhilosophy {
+    0% { opacity: 0; }
+    20% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+.performance-warning {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 0, 0, 0.1);
+    border: 2px solid #ff0000;
+    padding: 15px;
+    border-radius: 10px;
+    animation: warningPulse 2s infinite;
+    margin-bottom: 20px;
+}
+
+.warning-icon {
+    font-size: 24px;
+    color: #ff0000;
+    margin-right: 15px;
+    text-shadow: 0 0 10px rgba(255, 0, 0, 0.8);
+}
+
+.warning-text {
+    color: #ff4444;
+    font-size: 18px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+@keyframes warningPulse {
+    0% { 
+        border-color: #ff0000;
+        box-shadow: 0 0 10px rgba(255, 0, 0, 0.3);
+    }
+    50% { 
+        border-color: #ff6666;
+        box-shadow: 0 0 30px rgba(255, 0, 0, 0.8);
+    }
+    100% { 
+        border-color: #ff0000;
+        box-shadow: 0 0 10px rgba(255, 0, 0, 0.3);
+    }
+}
+
+/* Art Installation Mode Button */
+.art-installation-actions {
+    margin-top: 15px;
+    border-top: 1px solid #555;
+    padding-top: 15px;
+}
+
+.art-btn {
+    background: linear-gradient(45deg, #1a1a2e, #16213e) !important;
+    border: 2px solid #00ff88 !important;
+    color: #00ff88 !important;
+    font-size: 1em;
+    padding: 8px 16px;
+    width: 100%;
+    transition: all 0.3s ease;
+    text-shadow: 0 0 5px rgba(0, 255, 136, 0.5);
+}
+
+.art-btn:hover {
+    background: linear-gradient(45deg, #16213e, #0f3460) !important;
+    border-color: #00ffaa !important;
+    color: #00ffaa !important;
+    box-shadow: 0 0 15px rgba(0, 255, 170, 0.3);
+}
+
+.art-btn.active {
+    background: linear-gradient(45deg, #2e1a1a, #3e1616) !important;
+    border-color: #ff0088 !important;
+    color: #ff0088 !important;
+    animation: artPulse 3s infinite;
+    text-shadow: 0 0 10px rgba(255, 0, 136, 0.8);
+}
+
+@keyframes artPulse {
+    0% { 
+        opacity: 0.8;
+        box-shadow: 0 0 10px rgba(255, 0, 136, 0.3);
+    }
+    50% { 
+        opacity: 1;
+        box-shadow: 0 0 25px rgba(255, 0, 136, 0.8);
+    }
+    100% { 
+        opacity: 0.8;
+        box-shadow: 0 0 10px rgba(255, 0, 136, 0.3);
+    }
+}
+
+/* Matrix-like data stream effect */
+@keyframes dataStream {
+    0% { transform: translateY(-100px); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translateY(100vh); opacity: 0; }
+}

@@ -173,6 +173,29 @@ let lastPaintedCellsCount = 0;
 let noPaintProgressTime = 0;
 let noPaintThreshold = 10000; // 10 seconds with no new cells painted
 
+// --- Art Installation Variables ---
+let artInstallationMode = false;
+let artOverlayVisible = false;
+let computationalLoad = 0;
+let systemicComplexity = 1;
+let dataStreamValue = 0;
+let philosophicalQuotes = [
+    "L'intelligence artificielle dépasse l'entendement humain...",
+    "Ces algorithmes évoluent au-delà de notre compréhension...",
+    "La complexité computationnelle échappe à la raison...",
+    "Nous sommes dépassés par nos propres créations...",
+    "L'émergence surpasse l'intention de son créateur...",
+    "Dans cette symphonie de données, l'humain devient obsolète...",
+    "Chaque calcul nous éloigne de la compréhension..."
+];
+let currentQuoteIndex = 0;
+let artMetricsUpdateInterval = null;
+let glitchEffectActive = false;
+let infiniteMode = false;
+let performanceDegradationLevel = 0;
+let autoScalingInterval = null;
+let exponentialGrowthFactor = 1.02;
+
 // --- Audio Variables ---
 let audioContext = null;
 let masterGain = null;
@@ -609,6 +632,303 @@ function startSpeedRamp() {
             animationSpeedRampInterval = null;
         }
     }, updateInterval);
+}
+
+// --- Art Installation Functions ---
+function startArtInstallationMode() {
+    artInstallationMode = true;
+    artOverlayVisible = true;
+    
+    // Start animation mode automatically
+    if (!animationMode) {
+        startAnimationMode();
+    }
+    
+    // Show the overlay
+    const artOverlay = document.getElementById('artOverlay');
+    if (artOverlay) {
+        artOverlay.classList.remove('hidden');
+    }
+    
+    // Update button state
+    const artBtn = document.getElementById('artInstallationBtn');
+    if (artBtn) {
+        artBtn.classList.add('active');
+        artBtn.textContent = '🔴 Arrêter Installation';
+    }
+    
+    // Hide control panel for immersive experience
+    const controlPanel = document.getElementById('controlPanel');
+    if (controlPanel) {
+        controlPanel.style.display = 'none';
+    }
+    
+    // Start metrics updates
+    startArtMetricsUpdates();
+    
+    // Start infinite mode with exponential growth
+    startInfiniteMode();
+    
+    // Enable fullscreen mode
+    requestFullscreen();
+    
+    console.log("Art installation mode started");
+}
+
+function stopArtInstallationMode() {
+    artInstallationMode = false;
+    artOverlayVisible = false;
+    
+    // Hide the overlay
+    const artOverlay = document.getElementById('artOverlay');
+    if (artOverlay) {
+        artOverlay.classList.add('hidden');
+    }
+    
+    // Update button state
+    const artBtn = document.getElementById('artInstallationBtn');
+    if (artBtn) {
+        artBtn.classList.remove('active');
+        artBtn.textContent = '🎨 Installation Art';
+    }
+    
+    // Show control panel again
+    const controlPanel = document.getElementById('controlPanel');
+    if (controlPanel) {
+        controlPanel.style.display = 'flex';
+    }
+    
+    // Stop metrics updates
+    if (artMetricsUpdateInterval) {
+        clearInterval(artMetricsUpdateInterval);
+        artMetricsUpdateInterval = null;
+    }
+    
+    // Stop infinite mode
+    stopInfiniteMode();
+    
+    // Exit fullscreen
+    if (document.fullscreenElement) {
+        document.exitFullscreen();
+    }
+    
+    console.log("Art installation mode stopped");
+}
+
+function startArtMetricsUpdates() {
+    artMetricsUpdateInterval = setInterval(() => {
+        if (!artInstallationMode) return;
+        
+        // Update computational load based on simulation speed and ant count
+        const currentSpeed = mapSliderToSpeed(document.getElementById('simSpeedSlider')?.value || 50);
+        const antCount = ants.length;
+        computationalLoad = Math.floor(currentSpeed * antCount * (1 + Math.random() * 2));
+        
+        // Update systemic complexity based on rules and painted cells
+        const paintedCells = getPaintedCellsCount();
+        systemicComplexity = Math.floor(paintedCells / 1000) + Object.keys(rules).length + Math.floor(Math.random() * 5);
+        
+        // Update streaming data with random numbers
+        dataStreamValue = Math.floor(Math.random() * 999999);
+        
+        // Update DOM elements
+        updateArtOverlayMetrics();
+        
+        // Cycle philosophical quotes
+        if (Math.random() < 0.1) { // 10% chance each update
+            cyclePhilosophicalQuote();
+        }
+        
+        // Trigger glitch effects randomly
+        if (Math.random() < 0.05) { // 5% chance
+            triggerGlitchEffect();
+        }
+        
+    }, 500); // Update every 500ms
+}
+
+function updateArtOverlayMetrics() {
+    const computationalLoadEl = document.getElementById('computationalLoad');
+    const systemicComplexityEl = document.getElementById('systemicComplexity');
+    const dataStreamEl = document.getElementById('dataStream');
+    
+    if (computationalLoadEl) {
+        computationalLoadEl.textContent = computationalLoad.toLocaleString();
+    }
+    
+    if (systemicComplexityEl) {
+        systemicComplexityEl.textContent = systemicComplexity;
+    }
+    
+    if (dataStreamEl) {
+        dataStreamEl.textContent = dataStreamValue.toString().padStart(6, '0');
+    }
+    
+    // Show performance warning when computational load is high
+    const performanceWarning = document.getElementById('performanceWarning');
+    if (performanceWarning) {
+        if (computationalLoad > 50000) {
+            performanceWarning.style.display = 'flex';
+        } else {
+            performanceWarning.style.display = 'none';
+        }
+    }
+}
+
+function cyclePhilosophicalQuote() {
+    currentQuoteIndex = (currentQuoteIndex + 1) % philosophicalQuotes.length;
+    const quoteEl = document.getElementById('philosophicalQuote');
+    if (quoteEl) {
+        quoteEl.textContent = philosophicalQuotes[currentQuoteIndex];
+    }
+}
+
+function triggerGlitchEffect() {
+    if (glitchEffectActive) return;
+    
+    glitchEffectActive = true;
+    const canvas = document.getElementById('antCanvas');
+    
+    // Add glitch filter
+    canvas.style.filter = 'hue-rotate(180deg) saturate(2) contrast(1.5)';
+    
+    setTimeout(() => {
+        canvas.style.filter = 'none';
+        glitchEffectActive = false;
+    }, 100 + Math.random() * 200);
+}
+
+function getPaintedCellsCount() {
+    if (!grid) return 0;
+    
+    let count = 0;
+    for (let y = 0; y < gridRows; y++) {
+        for (let x = 0; x < gridCols; x++) {
+            if (grid[y][x] !== 0) {
+                count++;
+            }
+        }
+    }
+    return count;
+}
+
+function requestFullscreen() {
+    const element = document.documentElement;
+    if (element.requestFullscreen) {
+        element.requestFullscreen();
+    } else if (element.mozRequestFullScreen) {
+        element.mozRequestFullScreen();
+    } else if (element.webkitRequestFullscreen) {
+        element.webkitRequestFullscreen();
+    } else if (element.msRequestFullscreen) {
+        element.msRequestFullscreen();
+    }
+}
+
+function startInfiniteMode() {
+    infiniteMode = true;
+    performanceDegradationLevel = 0;
+    
+    // Start auto-scaling with exponential growth
+    autoScalingInterval = setInterval(() => {
+        if (!infiniteMode || !artInstallationMode) return;
+        
+        // Exponentially increase performance degradation
+        performanceDegradationLevel += 1;
+        exponentialGrowthFactor = Math.min(exponentialGrowthFactor * 1.001, 1.1); // Cap growth
+        
+        // Increase speed exponentially
+        const currentSpeed = parseInt(document.getElementById('simSpeedSlider')?.value || 50);
+        const newSpeed = Math.min(100, Math.floor(currentSpeed * exponentialGrowthFactor));
+        
+        const speedSlider = document.getElementById('simSpeedSlider');
+        if (speedSlider && newSpeed > currentSpeed) {
+            speedSlider.value = newSpeed;
+            speedSlider.dispatchEvent(new Event('input'));
+        }
+        
+        // Add more ants randomly to increase complexity
+        if (Math.random() < 0.3 && ants.length < 50) {
+            const antCountInput = document.getElementById('antCountInput');
+            if (antCountInput) {
+                const newCount = Math.min(50, ants.length + 1);
+                antCountInput.value = newCount;
+                // Trigger ant count update
+                initSimulation();
+            }
+        }
+        
+        // Increase glitch frequency as system becomes overwhelmed
+        if (performanceDegradationLevel > 50 && Math.random() < 0.2) {
+            triggerGlitchEffect();
+        }
+        
+        // Trigger critical system warnings
+        if (performanceDegradationLevel > 100) {
+            triggerCriticalOverload();
+        }
+        
+    }, 2000); // Every 2 seconds
+    
+    console.log("Infinite mode started - exponential growth initiated");
+}
+
+function stopInfiniteMode() {
+    infiniteMode = false;
+    performanceDegradationLevel = 0;
+    
+    if (autoScalingInterval) {
+        clearInterval(autoScalingInterval);
+        autoScalingInterval = null;
+    }
+    
+    // Reset growth factor
+    exponentialGrowthFactor = 1.02;
+    
+    console.log("Infinite mode stopped");
+}
+
+function triggerCriticalOverload() {
+    // Add intense visual effects to show system overload
+    const canvas = document.getElementById('antCanvas');
+    const artOverlay = document.getElementById('artOverlay');
+    
+    // Intense flashing effect
+    let flashCount = 0;
+    const flashInterval = setInterval(() => {
+        if (flashCount >= 10) {
+            clearInterval(flashInterval);
+            return;
+        }
+        
+        if (flashCount % 2 === 0) {
+            canvas.style.filter = 'invert(1) hue-rotate(180deg) saturate(3)';
+            if (artOverlay) artOverlay.style.background = 'rgba(255, 0, 0, 0.5)';
+        } else {
+            canvas.style.filter = 'none';
+            if (artOverlay) artOverlay.style.background = 'rgba(0, 0, 0, 0.3)';
+        }
+        
+        flashCount++;
+    }, 100);
+    
+    // Update quotes to show system failure
+    const criticalQuotes = [
+        "SYSTÈME EN SURCHARGE CRITIQUE",
+        "INTELLIGENCE ARTIFICIELLE HORS CONTRÔLE", 
+        "DÉPASSEMENT TOTAL DES CAPACITÉS HUMAINES",
+        "L'ALGORITHME A TRANSCENDÉ SON CRÉATEUR",
+        "NOUS NE CONTRÔLONS PLUS RIEN..."
+    ];
+    
+    const randomCriticalQuote = criticalQuotes[Math.floor(Math.random() * criticalQuotes.length)];
+    const quoteEl = document.getElementById('philosophicalQuote');
+    if (quoteEl) {
+        quoteEl.textContent = randomCriticalQuote;
+        quoteEl.style.color = '#ff0000';
+        quoteEl.style.fontSize = '32px';
+        quoteEl.style.fontWeight = 'bold';
+    }
 }
 
 // --- Mapping Function ---
@@ -2375,6 +2695,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 stopAnimationMode();
             } else {
                 startAnimationMode();
+            }
+        });
+    }
+    
+    // --- Art Installation Mode Listener ---
+    const artInstallationBtn = document.getElementById('artInstallationBtn');
+    if (artInstallationBtn) {
+        artInstallationBtn.addEventListener('click', () => {
+            if (artInstallationMode) {
+                stopArtInstallationMode();
+            } else {
+                startArtInstallationMode();
             }
         });
     }
