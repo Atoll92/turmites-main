@@ -157,6 +157,7 @@ let renderRequestId = null;       // ID for render requestAnimationFrame
 let pauseTime = 0; // Added: Store time when paused
 let cellsToUpdate = new Set(); // Combined set for all redraw locations
 let needsFullRedraw = true; // Flag to trigger full grid redraw
+let simulationStepCount = 0; // Track simulation steps for accurate MIDI timing
 
 // --- Animation Mode Variables ---
 let animationMode = false;
@@ -217,6 +218,12 @@ let midiVelocity = 64; // Default velocity (0-127)
 let midiProgramPerAnt = false; // Use different program (instrument) per ant
 let activeMidiNotes = new Map(); // Track active MIDI notes for proper note-off
 
+// --- MIDI Recording Variables ---
+let midiRecording = false;
+let midiRecordingStartTime = 0;
+let recordedMidiEvents = [];
+let midiExportTimer = null;
+
 // --- Musical Scales ---
 const musicalScales = {
     chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
@@ -274,6 +281,19 @@ function playNote(frequency, duration = 0.2, volume = 0.5, antIndex = 0) {
     
     oscillator.start(now);
     oscillator.stop(now + duration);
+    
+    // Record MIDI event if recording
+    if (midiRecording) {
+        const midiNote = frequencyToMidiNote(frequency);
+        const timestamp = performance.now() - midiRecordingStartTime;
+        recordMidiEvent({
+            note: midiNote,
+            velocity: Math.round(volume * 127),
+            duration: duration,
+            channel: antIndex % 16,
+            timestamp: timestamp
+        });
+    }
 }
 
 function gridToFrequency(x, y, gridCols, gridRows) {
@@ -341,25 +361,56 @@ function frequencyToMidiNote(frequency) {
 function sendMIDINoteOn(note, velocity, channel, antIndex = 0) {
     if (!selectedMidiOutput || !midiEnabled) return;
     
-    const actualChannel = midiProgramPerAnt ? 
-        (channel + antIndex) % 16 : channel;
+    // Enhanced polyphonic channel assignment
+    let actualChannel;
+    if (midiProgramPerAnt && ants.length > 1) {
+        // Use different channels for each ant to enable true polyphony
+        actualChannel = antIndex % 16;
+    } else {
+        actualChannel = channel;
+    }
     
+    // Send MIDI note on with high-resolution timing if available
+    const timestamp = audioContext ? audioContext.currentTime * 1000 : performance.now();
     const noteOn = [0x90 + actualChannel, note, velocity];
-    selectedMidiOutput.send(noteOn);
+    
+    if (selectedMidiOutput.send.length > 1) {
+        // Use high-precision timestamp if supported
+        selectedMidiOutput.send(noteOn, timestamp);
+    } else {
+        selectedMidiOutput.send(noteOn);
+    }
     
     // Track active note for this ant
     const noteKey = `${antIndex}-${note}-${actualChannel}`;
-    activeMidiNotes.set(noteKey, { note, channel: actualChannel, timestamp: performance.now() });
+    activeMidiNotes.set(noteKey, { 
+        note, 
+        channel: actualChannel, 
+        timestamp: timestamp,
+        ant: antIndex
+    });
 }
 
 function sendMIDINoteOff(note, channel, antIndex = 0) {
     if (!selectedMidiOutput || !midiEnabled) return;
     
-    const actualChannel = midiProgramPerAnt ? 
-        (channel + antIndex) % 16 : channel;
+    // Match the channel assignment logic from noteOn
+    let actualChannel;
+    if (midiProgramPerAnt && ants.length > 1) {
+        actualChannel = antIndex % 16;
+    } else {
+        actualChannel = channel;
+    }
     
+    // Send MIDI note off with high-resolution timing if available
+    const timestamp = audioContext ? audioContext.currentTime * 1000 : performance.now();
     const noteOff = [0x80 + actualChannel, note, 0];
-    selectedMidiOutput.send(noteOff);
+    
+    if (selectedMidiOutput.send.length > 1) {
+        selectedMidiOutput.send(noteOff, timestamp);
+    } else {
+        selectedMidiOutput.send(noteOff);
+    }
     
     // Remove from active notes
     const noteKey = `${antIndex}-${note}-${actualChannel}`;
@@ -669,8 +720,18 @@ function startArtInstallationMode() {
     // Start infinite mode with exponential growth
     startInfiniteMode();
     
+    // Start MIDI recording
+    startMidiRecording();
+    
     // Enable fullscreen mode
     requestFullscreen();
+    
+    // Set timer for MIDI export after 5 minutes
+    midiExportTimer = setTimeout(() => {
+        if (artInstallationMode && midiRecording) {
+            exportMidiRecording();
+        }
+    }, 5 * 60 * 1000); // 5 minutes
     
     console.log("Art installation mode started");
 }
@@ -706,6 +767,13 @@ function stopArtInstallationMode() {
     
     // Stop infinite mode
     stopInfiniteMode();
+    
+    // Stop MIDI recording and clear timer
+    stopMidiRecording();
+    if (midiExportTimer) {
+        clearTimeout(midiExportTimer);
+        midiExportTimer = null;
+    }
     
     // Exit fullscreen
     if (document.fullscreenElement) {
@@ -823,6 +891,234 @@ function requestFullscreen() {
     } else if (element.msRequestFullscreen) {
         element.msRequestFullscreen();
     }
+}
+
+// --- MIDI Recording Functions ---
+function startMidiRecording() {
+    midiRecording = true;
+    midiRecordingStartTime = performance.now();
+    recordedMidiEvents = [];
+    simulationStepCount = 0; // Reset simulation step counter
+    
+    // Show recording indicator
+    const indicator = document.getElementById('midiRecordingIndicator');
+    if (indicator) {
+        indicator.classList.add('active');
+    }
+    
+    // Start timer update
+    updateRecordingTimer();
+    
+    console.log("MIDI recording started");
+}
+
+function stopMidiRecording() {
+    midiRecording = false;
+    
+    // Hide recording indicator
+    const indicator = document.getElementById('midiRecordingIndicator');
+    if (indicator) {
+        indicator.classList.remove('active');
+    }
+    
+    console.log(`MIDI recording stopped. ${recordedMidiEvents.length} events recorded`);
+}
+
+function updateRecordingTimer() {
+    if (!midiRecording) return;
+    
+    const elapsed = performance.now() - midiRecordingStartTime;
+    const minutes = Math.floor(elapsed / 60000);
+    const seconds = Math.floor((elapsed % 60000) / 1000);
+    const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    
+    // Update control panel timer
+    const timerEl = document.getElementById('recordingTimer');
+    if (timerEl) {
+        timerEl.textContent = timeString;
+    }
+    
+    // Update art overlay timer
+    const artTimerEl = document.getElementById('artRecordingTimer');
+    if (artTimerEl) {
+        artTimerEl.textContent = timeString;
+    }
+    
+    // Update event count in control panel
+    const eventCountEl = document.getElementById('eventCount');
+    if (eventCountEl) {
+        eventCountEl.textContent = recordedMidiEvents.length;
+    }
+    
+    // Update event count in art overlay
+    const artEventCountEl = document.getElementById('artEventCount');
+    if (artEventCountEl) {
+        artEventCountEl.textContent = `${recordedMidiEvents.length} events`;
+    }
+    
+    // Continue updating
+    requestAnimationFrame(updateRecordingTimer);
+}
+
+function recordMidiEvent(noteData) {
+    if (!midiRecording) return;
+    
+    // Use the timestamp directly - it's already relative to start of recording
+    recordedMidiEvents.push({
+        time: noteData.timestamp,
+        note: noteData.note,
+        velocity: noteData.velocity || midiVelocity,
+        duration: noteData.duration,
+        channel: noteData.channel || 0
+    });
+}
+
+function exportMidiRecording() {
+    if (recordedMidiEvents.length === 0) {
+        console.log("No MIDI events to export");
+        return;
+    }
+    
+    console.log(`Exporting ${recordedMidiEvents.length} MIDI events...`);
+    
+    // Create MIDI file data
+    const midiData = createMidiFile(recordedMidiEvents);
+    
+    // Create download link
+    const blob = new Blob([midiData], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    
+    // Generate filename with timestamp
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    a.download = `turmite-art-installation-${timestamp}.mid`;
+    
+    // Trigger download
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    console.log("MIDI file exported successfully");
+}
+
+function createMidiFile(events) {
+    // Sort events by time
+    events.sort((a, b) => a.time - b.time);
+    
+    
+    // Use Format 0 (single track) for better compatibility with Ableton
+    // Combine all events into a single track
+    const header = new Uint8Array([
+        0x4D, 0x54, 0x68, 0x64, // "MThd"
+        0x00, 0x00, 0x00, 0x06, // Header length (6 bytes)
+        0x00, 0x00, // Format 0 (single track)
+        0x00, 0x01, // 1 track
+        0x01, 0xE0  // 480 ticks per quarter note
+    ]);
+    
+    // Build track data
+    const trackData = [];
+    let lastTime = 0;
+    
+    // Tempo event (120 BPM)
+    trackData.push(...encodeVariableLength(0)); // Delta time 0
+    trackData.push(0xFF, 0x51, 0x03); // Tempo meta event
+    trackData.push(0x07, 0xA1, 0x20); // 500000 microseconds per quarter note (120 BPM)
+    
+    // Set up program changes for each channel used
+    const usedChannels = new Set();
+    events.forEach(event => usedChannels.add(event.channel % 16));
+    
+    usedChannels.forEach(channel => {
+        trackData.push(...encodeVariableLength(0)); // Delta time 0
+        trackData.push(0xC0 + channel); // Program Change
+        trackData.push((channel * 8) % 128); // Different instrument per channel
+    });
+    
+    // Create a combined list of all MIDI events (note on and note off)
+    const allEvents = [];
+    
+    // Add all note on events
+    events.forEach(event => {
+        allEvents.push({
+            time: event.time,
+            type: 'noteOn',
+            channel: event.channel % 16,
+            note: event.note,
+            velocity: event.velocity
+        });
+        
+        // Calculate note off time
+        allEvents.push({
+            time: event.time + (event.duration * 1000), // Convert duration to ms
+            type: 'noteOff',
+            channel: event.channel % 16,
+            note: event.note,
+            velocity: 0
+        });
+    });
+    
+    // Sort all events by time
+    allEvents.sort((a, b) => a.time - b.time);
+    
+    // Convert events to MIDI with proper delta times
+    allEvents.forEach((event, index) => {
+        // Convert ms to MIDI ticks: at 120 BPM with 480 ticks per quarter note
+        // 1 beat = 500ms, 480 ticks = 500ms, so 1ms = 0.96 ticks
+        const deltaTime = Math.max(0, Math.round((event.time - lastTime) * 0.96)); // Convert ms to ticks, ensure non-negative
+        
+        trackData.push(...encodeVariableLength(deltaTime));
+        
+        if (event.type === 'noteOn') {
+            trackData.push(0x90 + event.channel); // Note On + channel
+            trackData.push(event.note);
+            trackData.push(event.velocity);
+        } else {
+            trackData.push(0x80 + event.channel); // Note Off + channel  
+            trackData.push(event.note);
+            trackData.push(event.velocity);
+        }
+        
+        lastTime = event.time;
+    });
+    
+    // End of track
+    trackData.push(...encodeVariableLength(0));
+    trackData.push(0xFF, 0x2F, 0x00);
+    
+    // Track header
+    const trackHeader = new Uint8Array([
+        0x4D, 0x54, 0x72, 0x6B, // "MTrk"
+        (trackData.length >> 24) & 0xFF,
+        (trackData.length >> 16) & 0xFF,
+        (trackData.length >> 8) & 0xFF,
+        trackData.length & 0xFF
+    ]);
+    
+    // Combine all parts
+    const midiFile = new Uint8Array(header.length + trackHeader.length + trackData.length);
+    midiFile.set(header, 0);
+    midiFile.set(trackHeader, header.length);
+    midiFile.set(new Uint8Array(trackData), header.length + trackHeader.length);
+    
+    return midiFile;
+}
+
+function encodeVariableLength(value) {
+    const bytes = [];
+    
+    do {
+        let byte = value & 0x7F;
+        value >>= 7;
+        if (bytes.length > 0) {
+            byte |= 0x80;
+        }
+        bytes.unshift(byte);
+    } while (value > 0);
+    
+    return bytes.length > 0 ? bytes : [0];
 }
 
 function startInfiniteMode() {
@@ -1556,6 +1852,20 @@ function stepSingleAntLogic(ant, antIndex = 0) {
                 // Send MIDI note on
                 sendMIDINoteOn(midiNote, velocity, midiChannel, antIndex);
                 
+                // Record MIDI event for export (with accurate timing)
+                if (midiRecording) {
+                    // Use current time relative to recording start for consistency
+                    const timestamp = performance.now() - midiRecordingStartTime;
+                    
+                    recordMidiEvent({
+                        note: midiNote,
+                        velocity: velocity,
+                        duration: duration,
+                        channel: midiProgramPerAnt ? (midiChannel + antIndex) % 16 : midiChannel,
+                        timestamp: timestamp
+                    });
+                }
+                
                 // Schedule note off based on duration
                 setTimeout(() => {
                     sendMIDINoteOff(midiNote, midiChannel, antIndex);
@@ -1572,8 +1882,11 @@ function runSimulationTick() {
          currentIntervalId = null;
          return;
      }
-    for (let i = 0; i < currentStepsPerTick; i++) {
-        stepSingleAntLogic(ants[i], i);
+    // Step ALL ants for the specified number of steps
+    for (let step = 0; step < currentStepsPerTick; step++) {
+        for (let i = 0; i < ants.length; i++) {
+            stepSingleAntLogic(ants[i], i);
+        }
     }
     requestAnimationFrame(draw); // Use rAF for drawing
 }
@@ -1586,9 +1899,11 @@ function runMaxSpeedLoop() {
         return; // Stop the loop
     }
 
-    // Run the batch of steps
-    for (let i = 0; i < currentStepsPerTick; i++) {
-        stepSingleAntLogic(ants[i], i);
+    // Run the batch of steps - step ALL ants for each tick
+    for (let step = 0; step < currentStepsPerTick; step++) {
+        for (let i = 0; i < ants.length; i++) {
+            stepSingleAntLogic(ants[i], i);
+        }
     }
 
     // Draw the result of the batch
@@ -1812,44 +2127,131 @@ function handleZoom(event) {
     if (!renderRequestId && !isRunning) requestAnimationFrame(draw);
 }
 
-function handleMouseDown(event) {
+// Enhanced pointer support for both mouse and touch
+let lastTouchDistance = 0;
+let lastTouchCenterX = 0;
+let lastTouchCenterY = 0;
+
+function getPointerPos(event, rect) {
+    if (event.touches && event.touches.length > 0) {
+        return {
+            x: event.touches[0].clientX - rect.left,
+            y: event.touches[0].clientY - rect.top
+        };
+    }
+    return {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top
+    };
+}
+
+function getTouchDistance(touch1, touch2) {
+    const dx = touch1.clientX - touch2.clientX;
+    const dy = touch1.clientY - touch2.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
+function getTouchCenter(touches, rect) {
+    if (touches.length === 1) {
+        return {
+            x: touches[0].clientX - rect.left,
+            y: touches[0].clientY - rect.top
+        };
+    }
+    const x = (touches[0].clientX + touches[1].clientX) / 2 - rect.left;
+    const y = (touches[0].clientY + touches[1].clientY) / 2 - rect.top;
+    return { x, y };
+}
+
+function handlePointerDown(event) {
+    event.preventDefault();
+    
+    if (event.touches && event.touches.length === 2) {
+        // Two-finger touch for pinch zoom
+        const rect = canvas.getBoundingClientRect();
+        lastTouchDistance = getTouchDistance(event.touches[0], event.touches[1]);
+        const center = getTouchCenter(event.touches, rect);
+        lastTouchCenterX = center.x;
+        lastTouchCenterY = center.y;
+        isDragging = false;
+        return;
+    }
+    
     isDragging = true;
     const rect = canvas.getBoundingClientRect();
-    lastMouseX = event.clientX - rect.left;
-    lastMouseY = event.clientY - rect.top;
+    const pos = getPointerPos(event, rect);
+    lastMouseX = pos.x;
+    lastMouseY = pos.y;
     canvas.style.cursor = 'grabbing';
 }
 
-function handleMouseUp(event) {
+function handlePointerUp(event) {
+    event.preventDefault();
     if (isDragging) {
         isDragging = false;
         canvas.style.cursor = 'grab';
     }
+    lastTouchDistance = 0;
 }
 
-function handleMouseMove(event) {
+function handlePointerMove(event) {
+    event.preventDefault();
+    
+    if (event.touches && event.touches.length === 2) {
+        // Two-finger pinch zoom
+        const rect = canvas.getBoundingClientRect();
+        const currentDistance = getTouchDistance(event.touches[0], event.touches[1]);
+        const center = getTouchCenter(event.touches, rect);
+        
+        if (lastTouchDistance > 0) {
+            const zoomRatio = currentDistance / lastTouchDistance;
+            const worldX = (center.x - offsetX) / scale;
+            const worldY = (center.y - offsetY) / scale;
+            
+            let newScale = Math.max(minScale, Math.min(maxScale, scale * zoomRatio));
+            
+            offsetX = center.x - worldX * newScale;
+            offsetY = center.y - worldY * newScale;
+            scale = newScale;
+            
+            needsFullRedraw = true;
+            if (!renderRequestId && !isRunning) requestAnimationFrame(draw);
+        }
+        
+        lastTouchDistance = currentDistance;
+        lastTouchCenterX = center.x;
+        lastTouchCenterY = center.y;
+        return;
+    }
+    
     if (!isDragging) return;
+    
     const rect = canvas.getBoundingClientRect();
-    const mouseX = event.clientX - rect.left;
-    const mouseY = event.clientY - rect.top;
+    const pos = getPointerPos(event, rect);
 
-    offsetX += mouseX - lastMouseX;
-    offsetY += mouseY - lastMouseY;
+    offsetX += pos.x - lastMouseX;
+    offsetY += pos.y - lastMouseY;
 
-    lastMouseX = mouseX;
-    lastMouseY = mouseY;
+    lastMouseX = pos.x;
+    lastMouseY = pos.y;
 
-    needsFullRedraw = true; // View changed, need full redraw
-    // Request animation frame, draw() will handle the rest
+    needsFullRedraw = true;
     if (!renderRequestId && !isRunning) requestAnimationFrame(draw);
 }
 
-function handleMouseLeave(event) {
-     if (isDragging) {
-        isDragging = false; // Stop dragging if mouse leaves canvas
+function handlePointerLeave(event) {
+    if (isDragging) {
+        isDragging = false;
         canvas.style.cursor = 'grab';
     }
+    lastTouchDistance = 0;
 }
+
+// Legacy mouse handlers for backwards compatibility
+function handleMouseDown(event) { handlePointerDown(event); }
+function handleMouseUp(event) { handlePointerUp(event); }
+function handleMouseMove(event) { handlePointerMove(event); }
+function handleMouseLeave(event) { handlePointerLeave(event); }
 
 // Global Hotkey Listener
 window.addEventListener('keydown', (event) => {
@@ -2211,12 +2613,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Pan and Zoom Listeners ---
     if (canvas) { // Check if canvas exists before adding listeners
+        // Mouse events
         canvas.addEventListener('wheel', handleZoom);
         canvas.addEventListener('mousedown', handleMouseDown);
         canvas.addEventListener('mouseup', handleMouseUp);
         canvas.addEventListener('mousemove', handleMouseMove);
         canvas.addEventListener('mouseleave', handleMouseLeave);
+        
+        // Touch events for mobile support
+        canvas.addEventListener('touchstart', handlePointerDown, { passive: false });
+        canvas.addEventListener('touchend', handlePointerUp, { passive: false });
+        canvas.addEventListener('touchmove', handlePointerMove, { passive: false });
+        canvas.addEventListener('touchcancel', handlePointerLeave, { passive: false });
+        
         canvas.style.cursor = 'grab';
+        canvas.style.touchAction = 'none'; // Prevent default touch behaviors
     } else {
         console.error("Canvas element not found for Pan/Zoom listeners!");
     }
@@ -2659,6 +3070,38 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
+    // MIDI Recording Controls
+    const startMidiRecordingBtn = document.getElementById('startMidiRecordingBtn');
+    const stopMidiRecordingBtn = document.getElementById('stopMidiRecordingBtn');
+    const exportMidiBtn = document.getElementById('exportMidiBtn');
+    
+    if (startMidiRecordingBtn) {
+        startMidiRecordingBtn.addEventListener('click', () => {
+            startMidiRecording();
+            startMidiRecordingBtn.disabled = true;
+            stopMidiRecordingBtn.disabled = false;
+            const recordingStatus = document.getElementById('midiRecordingStatus');
+            if (recordingStatus) {
+                recordingStatus.style.display = 'block';
+            }
+        });
+    }
+    
+    if (stopMidiRecordingBtn) {
+        stopMidiRecordingBtn.addEventListener('click', () => {
+            stopMidiRecording();
+            startMidiRecordingBtn.disabled = false;
+            stopMidiRecordingBtn.disabled = true;
+            exportMidiBtn.disabled = recordedMidiEvents.length === 0;
+        });
+    }
+    
+    if (exportMidiBtn) {
+        exportMidiBtn.addEventListener('click', () => {
+            exportMidiRecording();
+        });
+    }
+    
     // Helper function to update MIDI device dropdown
     function updateMIDIDeviceList() {
         if (!midiDeviceSelect) return;
@@ -2729,6 +3172,9 @@ function simulationLoop() {
 
     // Determine how many full simulation ticks (all ants move once) should have passed
     while (now >= nextStepTime && totalStepsExecutedThisLoop < maxStepsPerLoopIteration) {
+        // Increment global step counter for this simulation tick
+        simulationStepCount++;
+        
         for (let i = 0; i < ants.length; i++) {
             const ant = ants[i];
             if (!ant) continue;

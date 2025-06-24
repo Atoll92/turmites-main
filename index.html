@@ -39,6 +39,13 @@
             <div class="warning-icon">⚠</div>
             <div class="warning-text">SYSTÈME EN SURCHARGE COGNITIVE</div>
         </div>
+        
+        <div class="midi-recording-indicator" id="midiRecordingIndicator">
+            <div class="rec-icon">●</div>
+            <div class="rec-text">MIDI RECORDING</div>
+            <div class="rec-timer" id="artRecordingTimer">00:00</div>
+            <div class="rec-events" id="artEventCount">0 events</div>
+        </div>
     </div>
 
     <div id="controlPanel" class="minimized">
@@ -220,7 +227,19 @@
                 <!-- MIDI Options -->
                 <div class="input-container midi-options-container">
                     <label for="midiProgramPerAntCheck" title="Use different MIDI channel/program per ant">Multi-Channel:</label>
-                    <input type="checkbox" id="midiProgramPerAntCheck">
+                    <input type="checkbox" id="midiProgramPerAntCheck" checked>
+                </div>
+                
+                <!-- MIDI Recording Controls -->
+                <div class="midi-recording-controls">
+                    <div class="button-group">
+                        <button id="startMidiRecordingBtn" title="Start MIDI recording">🔴 Record</button>
+                        <button id="stopMidiRecordingBtn" title="Stop MIDI recording" disabled>⏹ Stop</button>
+                        <button id="exportMidiBtn" title="Export recorded MIDI as file" disabled>💾 Export MIDI</button>
+                    </div>
+                    <div class="recording-status" id="midiRecordingStatus" style="display: none;">
+                        <span id="recordingTimer">00:00</span> • <span id="eventCount">0</span> events
+                    </div>
                 </div>
             </div>
             

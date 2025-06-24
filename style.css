@@ -2,6 +2,7 @@ body {
     margin: 0;
     overflow: hidden; /* Hide scrollbars */
     background-color: #555; /* Dark gray background */
+    font-size: 14px; /* Base font size for better scaling */
 }
 
 canvas {
@@ -12,18 +13,21 @@ canvas {
     position: absolute;
     top: 10px;
     right: 10px;
-    /* background-color: rgba(50, 50, 50, 0.8); */ /* Removed transparency */
-    background-color: #323232; /* Opaque dark gray */
-    padding: 10px; /* Adjusted padding */
-    border-radius: 5px;
+    background-color: #323232;
+    padding: 12px;
+    border-radius: 8px;
     color: white;
-    font-family: sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     display: flex;
     flex-direction: column;
-    /* align-items: flex-start; */ /* Let content stretch */
-    min-width: 320px; /* Further Increased panel width */
-    transition: min-height 0.3s ease, padding 0.3s ease, min-width 0.3s ease;
-    gap: 5px; /* Slightly smaller gap between all items */
+    min-width: 280px;
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    transition: all 0.3s ease;
+    gap: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    border: 1px solid #444;
 }
 
 .panel-header {
@@ -90,28 +94,33 @@ canvas {
 
 /* General button styles (content buttons) */
 #controlPanel .panel-content button {
-    padding: 6px 10px;
+    padding: 8px 12px;
     cursor: pointer;
     border: none;
-    border-radius: 3px;
+    border-radius: 6px;
     background-color: #555;
     color: white;
-    font-size: 1.2em;
-    line-height: 1;
-    min-width: 36px;
+    font-size: 0.9em;
+    line-height: 1.2;
+    min-width: 44px;
+    min-height: 44px;
     text-align: center;
-    transition: background-color 0.1s ease, transform 0.05s ease; /* Added transitions */
+    transition: all 0.2s ease;
+    font-weight: 500;
 }
 
 /* General hover for non-disabled buttons */
 #controlPanel button:not(:disabled):hover {
-    background-color: #686868; /* Slightly lighter grey */
+    background-color: #686868;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 /* General active state for non-disabled buttons */
 #controlPanel button:not(:disabled):active {
-    background-color: #7a7a7a; /* Even lighter grey when clicked */
-    transform: translateY(1px); /* Subtle press effect */
+    background-color: #7a7a7a;
+    transform: translateY(1px);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 
 /* Disabled button state */
@@ -119,7 +128,9 @@ canvas {
     background-color: #444;
     color: #888;
     cursor: not-allowed;
-    transform: none; /* Ensure no press effect when disabled */
+    transform: none;
+    opacity: 0.6;
+    box-shadow: none;
 }
 
 /* Highlight Apply button when enabled */
@@ -167,12 +178,15 @@ canvas {
     display: flex;
     gap: 8px;
     align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-start;
 }
 
 .slider-container {
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-wrap: wrap;
 }
 
 #controlPanel label {
@@ -181,7 +195,48 @@ canvas {
 
 #controlPanel input[type="range"] {
     cursor: pointer;
-    width: 100px; /* Adjust width as needed */
+    width: 120px;
+    height: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: #444;
+    border-radius: 3px;
+    outline: none;
+}
+
+#controlPanel input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    background: #fff;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    transition: all 0.2s ease;
+}
+
+#controlPanel input[type="range"]::-webkit-slider-thumb:hover {
+    background: #f0f0f0;
+    transform: scale(1.1);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+}
+
+#controlPanel input[type="range"]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    background: #fff;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    transition: all 0.2s ease;
+}
+
+#controlPanel input[type="range"]::-moz-range-thumb:hover {
+    background: #f0f0f0;
+    transform: scale(1.1);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.4);
 }
 
 #controlPanel #simSpeedValue {
@@ -279,11 +334,11 @@ canvas {
 
 /* New styles for Randomize Options panel */
 #randomizeOptionsPanel {
-    margin-top: 10px;
-    /* background-color: #2a2a2a; */ /* Slightly different bg for distinction if needed */
-    /* border: 1px solid #444; */
-    /* border-radius: 3px; */
-    /* padding: 8px; */
+    margin: 12px 0;
+    background-color: #2a2a2a;
+    border: 1px solid #444;
+    border-radius: 6px;
+    padding: 12px;
 }
 
 #randomizeOptionsPanel .panel-header {
@@ -385,18 +440,24 @@ canvas {
 /* Panel Title Style */
 .panel-title {
     text-align: center;
-    margin: 0 0 10px 0; /* Remove top margin, add bottom */
-    font-size: 1.2em;
-    font-weight: bold;
-    color: #eee;
+    margin: 0 0 16px 0;
+    font-size: 1.3em;
+    font-weight: 600;
+    color: #fff;
+    border-bottom: 2px solid #555;
+    padding-bottom: 8px;
 }
 
 /* Grid Info Display */
 .grid-info {
     text-align: center;
-    font-size: 0.85em;
-    color: #aaa;
-    margin-bottom: 10px;
+    font-size: 0.9em;
+    color: #bbb;
+    margin-bottom: 12px;
+    padding: 6px 12px;
+    background-color: #2a2a2a;
+    border-radius: 4px;
+    border: 1px solid #444;
 }
 
 /* General Hidden Utility */
@@ -409,7 +470,8 @@ canvas {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-top: 8px; /* Slightly reduced default top margin */
+    margin-top: 6px;
+    flex-wrap: wrap;
 }
 
 /* Specific margin/alignment for checkbox container */
@@ -425,28 +487,47 @@ canvas {
 }
 
 .input-container input[type="number"] {
-    width: 60px; /* Adjust width */
-    padding: 3px 5px;
-    background-color: #222; /* Dark background */
-    color: white; /* Light text */
-    border: 1px solid #555; /* Subtle border */
-    border-radius: 3px;
+    width: 70px;
+    padding: 6px 8px;
+    background-color: #444;
+    color: white;
+    border: 1px solid #666;
+    border-radius: 4px;
+    font-size: 0.9em;
+    min-height: 32px;
+    box-sizing: border-box;
+}
+
+.input-container input[type="number"]:focus {
+    outline: none;
+    border-color: #888;
+    background-color: #4a4a4a;
 }
 
 .input-container select {
-    padding: 3px 5px;
-    background-color: #222; /* Dark background */
-    color: white; /* Light text */
-    border: 1px solid #555; /* Subtle border */
-    border-radius: 3px;
-    flex-grow: 1; /* Allow select to fill space if needed */
+    padding: 6px 8px;
+    background-color: #444;
+    color: white;
+    border: 1px solid #666;
+    border-radius: 4px;
+    flex-grow: 1;
+    font-size: 0.9em;
+    min-height: 32px;
+    cursor: pointer;
+}
+
+.input-container select:focus {
+    outline: none;
+    border-color: #888;
+    background-color: #4a4a4a;
 }
 
 /* Style for the HR separator */
 .control-separator {
     border: none;
-    border-top: 1px solid #555; /* Match other borders */
-    margin: 12px 0; /* Space above and below */
+    border-top: 2px solid #555;
+    margin: 20px 0;
+    opacity: 0.6;
 }
 
 /* REMOVE specific styles for save/load buttons as they now share the edit button style */
@@ -474,15 +555,23 @@ canvas {
 .audio-controls-section {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 8px;
+    padding: 12px;
+    background-color: #2a2a2a;
+    border-radius: 6px;
+    border: 1px solid #444;
+    margin: 8px 0;
 }
 
 .section-title {
-    margin: 0 0 5px 0;
-    font-size: 0.9em;
-    color: #ddd;
-    border-bottom: 1px solid #555;
-    padding-bottom: 3px;
+    margin: 16px 0 8px 0;
+    font-size: 1em;
+    color: #fff;
+    border-bottom: 1px solid #666;
+    padding-bottom: 6px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .audio-enable-container input[type="checkbox"] {
@@ -506,7 +595,12 @@ canvas {
 .midi-controls-section {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 8px;
+    padding: 12px;
+    background-color: #2a2a2a;
+    border-radius: 6px;
+    border: 1px solid #444;
+    margin: 8px 0;
 }
 
 .midi-enable-container input[type="checkbox"] {
@@ -534,9 +628,11 @@ canvas {
 
 /* Animation Mode Button */
 .animation-actions {
-    margin-top: 15px;
-    border-top: 1px solid #555;
-    padding-top: 15px;
+    margin-top: 20px;
+    padding: 12px;
+    background-color: #2a2a2a;
+    border-radius: 6px;
+    border: 1px solid #444;
 }
 
 .animation-btn {
@@ -698,9 +794,11 @@ canvas {
 
 /* Art Installation Mode Button */
 .art-installation-actions {
-    margin-top: 15px;
-    border-top: 1px solid #555;
-    padding-top: 15px;
+    margin-top: 12px;
+    padding: 12px;
+    background-color: #2a2a2a;
+    border-radius: 6px;
+    border: 1px solid #444;
 }
 
 .art-btn {
@@ -750,4 +848,428 @@ canvas {
     10% { opacity: 1; }
     90% { opacity: 1; }
     100% { transform: translateY(100vh); opacity: 0; }
+}
+
+/* MIDI Recording Indicator */
+.midi-recording-indicator {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(255, 0, 0, 0.9);
+    border: 2px solid #ff0000;
+    border-radius: 10px;
+    padding: 10px 20px;
+    display: none;
+    align-items: center;
+    gap: 10px;
+    animation: recordPulse 1s infinite;
+}
+
+.midi-recording-indicator.active {
+    display: flex;
+}
+
+.rec-icon {
+    color: white;
+    font-size: 20px;
+    animation: recordBlink 1s infinite;
+}
+
+.rec-text {
+    color: white;
+    font-weight: bold;
+    font-size: 14px;
+    letter-spacing: 1px;
+}
+
+.rec-timer {
+    color: white;
+    font-family: 'Courier New', monospace;
+    font-size: 16px;
+    min-width: 50px;
+}
+
+.rec-events {
+    color: white;
+    font-size: 14px;
+    font-family: 'Courier New', monospace;
+    margin-left: 10px;
+}
+
+@keyframes recordPulse {
+    0% { box-shadow: 0 0 10px rgba(255, 0, 0, 0.5); }
+    50% { box-shadow: 0 0 20px rgba(255, 0, 0, 0.8); }
+    100% { box-shadow: 0 0 10px rgba(255, 0, 0, 0.5); }
+}
+
+@keyframes recordBlink {
+    0% { opacity: 1; }
+    50% { opacity: 0.3; }
+    100% { opacity: 1; }
+}
+
+/* MIDI Recording Controls */
+.midi-recording-controls {
+    margin-top: 8px;
+}
+
+.midi-recording-controls .button-group {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 5px;
+}
+
+.midi-recording-controls button {
+    flex: 1;
+    padding: 6px 8px;
+    font-size: 0.8em;
+    border-radius: 3px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#startMidiRecordingBtn {
+    background: #e74c3c;
+    color: white;
+}
+
+#startMidiRecordingBtn:hover:not(:disabled) {
+    background: #c0392b;
+}
+
+#stopMidiRecordingBtn {
+    background: #34495e;
+    color: white;
+}
+
+#stopMidiRecordingBtn:hover:not(:disabled) {
+    background: #2c3e50;
+}
+
+#exportMidiBtn {
+    background: #27ae60;
+    color: white;
+}
+
+#exportMidiBtn:hover:not(:disabled) {
+    background: #229954;
+}
+
+.midi-recording-controls button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.recording-status {
+    font-size: 0.75em;
+    color: #bbb;
+    text-align: center;
+    padding: 3px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 3px;
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+
+/* Mobile Styles */
+@media (max-width: 768px) {
+    #controlPanel {
+        position: fixed;
+        top: 0;
+        right: 0;
+        left: 0;
+        bottom: 0;
+        max-width: 100vw;
+        max-height: 100vh;
+        min-width: auto;
+        border-radius: 0;
+        padding: 16px;
+        overflow-y: auto;
+        z-index: 1000;
+    }
+    
+    #controlPanel.minimized {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        left: auto;
+        bottom: auto;
+        max-width: auto;
+        max-height: auto;
+        border-radius: 8px;
+    }
+    
+    .panel-title {
+        font-size: 1.4em;
+        margin-bottom: 16px;
+    }
+    
+    .button-group {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .input-container {
+        justify-content: space-between;
+        min-height: 48px;
+    }
+    
+    .slider-container {
+        justify-content: space-between;
+        min-height: 48px;
+    }
+    
+    #controlPanel input[type="range"] {
+        width: 150px;
+    }
+    
+    .section-title {
+        font-size: 1.1em;
+        margin: 12px 0 8px 0;
+    }
+    
+    /* Make buttons larger for touch */
+    #controlPanel .panel-content button {
+        min-height: 48px;
+        min-width: 48px;
+        padding: 12px 16px;
+        font-size: 1em;
+    }
+    
+    /* Make checkboxes and inputs larger */
+    input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+    }
+    
+    .input-container input[type="number"],
+    .input-container select {
+        min-height: 48px;
+        font-size: 1em;
+        padding: 8px 12px;
+    }
+}
+
+/* Tablet Styles */
+@media (min-width: 769px) and (max-width: 1024px) {
+    #controlPanel {
+        min-width: 300px;
+        max-width: 40vw;
+    }
+    
+    .button-group {
+        flex-wrap: wrap;
+    }
+    
+    #controlPanel input[type="range"] {
+        width: 140px;
+    }
+}
+
+/* Small Mobile Styles */
+@media (max-width: 480px) {
+    #controlPanel {
+        padding: 12px;
+        font-size: 0.9em;
+    }
+    
+    .panel-title {
+        font-size: 1.2em;
+    }
+    
+    .section-title {
+        font-size: 1em;
+    }
+    
+    #controlPanel input[type="range"] {
+        width: 120px;
+    }
+    
+    .button-group {
+        gap: 6px;
+    }
+    
+    #controlPanel .panel-content button {
+        min-height: 44px;
+        min-width: 44px;
+        padding: 10px 14px;
+        font-size: 0.9em;
+    }
+}
+
+/* High DPI / Retina Displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    #controlPanel {
+        border-width: 0.5px;
+    }
+    
+    .input-container input[type="number"],
+    .input-container select {
+        border-width: 0.5px;
+    }
+}
+
+/* Landscape orientation on mobile */
+@media (max-width: 768px) and (orientation: landscape) {
+    #controlPanel:not(.minimized) {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 50vw;
+        height: 100vh;
+        left: auto;
+        bottom: auto;
+    }
+}
+
+/* Touch-friendly improvements */
+@media (pointer: coarse) {
+    #controlPanel .panel-content button {
+        min-height: 48px;
+        min-width: 48px;
+    }
+    
+    input[type="range"]::-webkit-slider-thumb {
+        width: 24px;
+        height: 24px;
+    }
+    
+    input[type="range"]::-moz-range-thumb {
+        width: 24px;
+        height: 24px;
+    }
+    
+    .panel-header #minimizeBtn,
+    .panel-header #maximizeBtn {
+        min-width: 32px;
+        min-height: 32px;
+        font-size: 1.4em;
+    }
+}
+
+/* ===== ACCESSIBILITY ENHANCEMENTS ===== */
+
+/* Focus indicators for keyboard navigation */
+#controlPanel button:focus,
+#controlPanel input:focus,
+#controlPanel select:focus {
+    outline: 2px solid #4A9EFF;
+    outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    #controlPanel {
+        background-color: #000;
+        border: 2px solid #fff;
+    }
+    
+    #controlPanel .panel-content button {
+        background-color: #000;
+        color: #fff;
+        border: 1px solid #fff;
+    }
+    
+    .input-container input[type="number"],
+    .input-container select {
+        background-color: #000;
+        color: #fff;
+        border: 2px solid #fff;
+    }
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+    #controlPanel,
+    #controlPanel .panel-content button,
+    #controlPanel input[type="range"]::-webkit-slider-thumb,
+    #controlPanel input[type="range"]::-moz-range-thumb {
+        transition: none;
+    }
+    
+    .animation-btn,
+    .art-btn {
+        animation: none;
+    }
+}
+
+/* Screen reader improvements */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Loading state for buttons */
+#controlPanel button.loading {
+    position: relative;
+    color: transparent;
+}
+
+#controlPanel button.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 16px;
+    height: 16px;
+    border: 2px solid transparent;
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* Error states */
+.input-container.error input,
+.input-container.error select {
+    border-color: #ff4444;
+    box-shadow: 0 0 0 2px rgba(255, 68, 68, 0.2);
+}
+
+/* Success states */
+.input-container.success input,
+.input-container.success select {
+    border-color: #44ff44;
+    box-shadow: 0 0 0 2px rgba(68, 255, 68, 0.2);
+}
+
+/* Tooltip styling */
+.tooltip {
+    position: relative;
+}
+
+.tooltip::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 1000;
+}
+
+.tooltip:hover::after {
+    opacity: 1;
 }
